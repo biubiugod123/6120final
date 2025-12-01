@@ -1,0 +1,31 @@
+
+
+model_name_or_path: google/flan-t5-base
+finetuning_type: lora
+task_type: seq2seq          
+trust_remote_code: true     
+
+dataset: cot_sft_fixed      
+
+template: empty
+
+output_dir: results/cot_sft_flan_t5
+
+num_train_epochs: 1
+per_device_train_batch_size: 4
+gradient_accumulation_steps: 4
+learning_rate: 3e-5
+lr_scheduler_type: cosine
+logging_steps: 10
+save_steps: 200
+
+
+
+
+
+
+
+
+
+
+

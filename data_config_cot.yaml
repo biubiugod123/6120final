@@ -1,0 +1,7 @@
+datasets:
+  cot_sft:
+    path: ./data/cot_sft_formatted.jsonl
+    type: jsonl
+    fields:
+      input: input
+      output: target
