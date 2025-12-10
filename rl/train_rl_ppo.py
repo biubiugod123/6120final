@@ -40,11 +40,11 @@ class RLTrainingConfig:
 
     # Model configs
     model_name_or_path: str = "google/flan-t5-base"
-    sft_checkpoint: str = None  # Path to SFT fine-tuned checkpoint
-    model_type: str = "seq2seq"  # "seq2seq" or "causal"
+    sft_checkpoint: str = None
+    model_type: str = "seq2seq"
 
     # Data configs
-    train_data_path: str = "data/cot_sft_formatted.jsonl"
+    train_data_path: str = "data/cot_rl_train.jsonl"
     eval_data_path: str = None
     max_train_samples: int = 10000
 
@@ -209,7 +209,6 @@ def process_batch_tensors(batch, device):
     query_tensors = batch["input_ids"]
     attention_mask = batch["attention_mask"]
 
-    # 1. Stack lists into tensors
     if isinstance(query_tensors, list):
         query_tensors = torch.stack(query_tensors).to(device)
     else:
@@ -220,9 +219,6 @@ def process_batch_tensors(batch, device):
     else:
         attention_mask = attention_mask.to(device)
 
-    # 2. CRITICAL SHAPE FIX
-    # If the tensor is [512, 8] (Seq, Batch), we must transpose it to [8, 512].
-    # Logic: If Dimension 0 (512) > Dimension 1 (8), it's likely transposed.
     if query_tensors.shape[0] > query_tensors.shape[1]:
         query_tensors = query_tensors.T
         attention_mask = attention_mask.T
@@ -232,7 +228,7 @@ def process_batch_tensors(batch, device):
 
 def run_training_loop(config, ppo_trainer, tokenizer, model, reward_fn, query_ref_map):
     """
-    执行核心训练循环 (Debug Version)
+    core loop
     """
     print(f"\n[4/4] Starting PPO training loop ({config.num_train_epochs} Epochs)...")
     print("=" * 50)
@@ -263,12 +259,6 @@ def run_training_loop(config, ppo_trainer, tokenizer, model, reward_fn, query_re
                     **generation_kwargs
                 )
 
-            # --- DEBUG PRINT (This will show us the REAL shapes) ---
-            if step == 0:
-                print(f"\n[DEBUG] Step 0 Shapes:")
-                print(f"  Query Shape: {query_tensors.shape} (Expected: [{config.batch_size}, 512])")
-                print(f"  Response Shape: {response_tensors.shape} (Expected: [{config.batch_size}, 129])")
-            # -------------------------------------------------------
 
             # 3. Decode
             batch_responses = tokenizer.batch_decode(response_tensors, skip_special_tokens=True)
@@ -343,29 +333,24 @@ def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(description="Train CoT model with PPO")
 
-    # Model args
     parser.add_argument("--model_name", type=str, default="google/flan-t5-base")
     parser.add_argument("--sft_checkpoint", type=str, default=None,
                        help="Path to SFT fine-tuned checkpoint")
 
-    # Data args
     parser.add_argument("--train_data", type=str, default="data/cot_sft_formatted.jsonl")
     parser.add_argument("--max_samples", type=int, default=10000)
 
-    # Training args
     parser.add_argument("--learning_rate", type=float, default=1e-5)
     parser.add_argument("--batch_size", type=int, default=4)
     parser.add_argument("--num_epochs", type=int, default=1)
     parser.add_argument("--output_dir", type=str, default="results/rl_ppo")
 
-    # Reward args
     parser.add_argument("--reward_correctness", type=float, default=1.0)
     parser.add_argument("--reward_format", type=float, default=0.2)
     parser.add_argument("--reward_quality", type=float, default=0.1)
 
     args = parser.parse_args()
 
-    # Build config
     config = RLTrainingConfig(
         model_name_or_path=args.model_name,
         sft_checkpoint=args.sft_checkpoint,
