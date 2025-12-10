@@ -37,3 +37,11 @@ Below is the key file structure for this project. Please ensure your directories
 - **accelerate**
 - **peft**
 - **datasets**
+
+## Run
+
+To evaluate the RL results, run:
+
+```bash
+python evaluate_rl.py
+
